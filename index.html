@@ -45,12 +45,14 @@
         document.body.appendChild(renderer.domElement);
         camera.position.z = 50;
 
-        // Mouse controls
+        // Mouse and touch controls
         let isDragging = false;
         let previousMousePosition = {
             x: 0,
             y: 0
         };
+
+        // Mouse
         renderer.domElement.addEventListener('mousedown', (e) => {
             isDragging = true;
             previousMousePosition = {
@@ -76,6 +78,35 @@
 
         renderer.domElement.addEventListener('mouseup', () => isDragging = false);
         renderer.domElement.addEventListener('mouseleave', () => isDragging = false);
+
+        // Touch
+        renderer.domElement.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                previousMousePosition = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY
+                };
+            }
+        });
+
+        renderer.domElement.addEventListener('touchmove', (e) => {
+            if (isDragging && e.touches.length === 1) {
+                const deltaMove = {
+                    x: e.touches[0].clientX - previousMousePosition.x,
+                    y: e.touches[0].clientY - previousMousePosition.y
+                };
+                camera.rotation.y += deltaMove.x * 0.005;
+                camera.rotation.x += deltaMove.y * 0.005;
+                previousMousePosition = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY
+                };
+            }
+        });
+
+        renderer.domElement.addEventListener('touchend', () => isDragging = false);
+        renderer.domElement.addEventListener('touchcancel', () => isDragging = false);
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -136,18 +167,18 @@
         const elements = [];
 
         function spawnElement() {
-            const isHeart = Math.random() < 0.3; // 30% heart, 70% text
-            const halfWidth = window.innerWidth / 20; // approx range for x
-            const halfDepth = 50; // extended Z range
+            const isHeart = Math.random() < 0.3;
+            const halfWidth = window.innerWidth / 20;
+            const halfDepth = 50;
 
             const sprite = isHeart ?
                 new THREE.Sprite(heartMaterial) :
                 createTextSprite(messages[Math.floor(random(0, messages.length))]);
 
             sprite.position.set(
-                random(-halfWidth, halfWidth), // expanded X range
+                random(-halfWidth, halfWidth),
                 40,
-                random(-halfDepth, halfDepth) // expanded Z range
+                random(-halfDepth, halfDepth)
             );
             sprite.scale.set(isHeart ? 2 : 20, isHeart ? 2 : 5, 1);
 
