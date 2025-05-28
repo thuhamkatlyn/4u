@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Loving Messages in 3D</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap');
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: black;
+            font-family: 'Poppins', sans-serif;
+            user-select: none;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100vh;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script>
+        const messages = [
+            "Yêu cậu nhiều ♥",
+            "Cậu rất tuyệt vời",
+            "Gửi cậu 1 cái ôm thật chặt ♥",
+            "Chúng ta là định mệnh được viết bởi phép màu",
+            "Tớ sẽ luôn bên cạnh cậu",
+            "Cậu chính là vitamin giúp tớ vui mỗi ngày",
+            "Có cậu là có cả bầu trời yêu thương",
+            "Cảm ơn cậu vì đã tới"
+        ];
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({
+            alpha: true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        camera.position.z = 50;
+
+        // Mouse controls
+        let isDragging = false;
+        let previousMousePosition = {
+            x: 0,
+            y: 0
+        };
+        renderer.domElement.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            previousMousePosition = {
+                x: e.clientX,
+                y: e.clientY
+            };
+        });
+
+        renderer.domElement.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const deltaMove = {
+                    x: e.clientX - previousMousePosition.x,
+                    y: e.clientY - previousMousePosition.y
+                };
+                camera.rotation.y += deltaMove.x * 0.005;
+                camera.rotation.x += deltaMove.y * 0.005;
+                previousMousePosition = {
+                    x: e.clientX,
+                    y: e.clientY
+                };
+            }
+        });
+
+        renderer.domElement.addEventListener('mouseup', () => isDragging = false);
+        renderer.domElement.addEventListener('mouseleave', () => isDragging = false);
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        const heartTexture = new THREE.TextureLoader().load(
+            'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="red"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>'
+        );
+        const heartMaterial = new THREE.SpriteMaterial({
+            map: heartTexture,
+            color: 0xff69b4
+        });
+
+        function createTextSprite(message) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            const fontSize = 50;
+            const font = `600 ${fontSize}px "Poppins", sans-serif`;
+            context.font = font;
+
+            const metrics = context.measureText(message);
+            const textWidth = metrics.width;
+            canvas.width = textWidth + 60;
+            canvas.height = 100;
+
+            context.font = font;
+            context.fillStyle = 'white';
+            context.shadowColor = 'white';
+
+            for (let i = 0; i < 3; i++) {
+                context.shadowBlur = 30 + i * 10;
+                context.fillText(message, 30, 70);
+            }
+
+            context.shadowBlur = 0;
+            context.fillText(message, 30, 70);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+
+            const material = new THREE.SpriteMaterial({
+                map: texture,
+                transparent: true
+            });
+
+            const sprite = new THREE.Sprite(material);
+            const scaleFactor = Math.min(1, 20 / (textWidth / 60));
+            sprite.scale.set(20 * scaleFactor, 5, 1);
+            return sprite;
+        }
+
+        function random(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        const elements = [];
+
+        function spawnElement() {
+            const isHeart = Math.random() < 0.3; // 30% heart, 70% text
+            const halfWidth = window.innerWidth / 20; // approx range for x
+            const halfDepth = 50; // extended Z range
+
+            const sprite = isHeart ?
+                new THREE.Sprite(heartMaterial) :
+                createTextSprite(messages[Math.floor(random(0, messages.length))]);
+
+            sprite.position.set(
+                random(-halfWidth, halfWidth), // expanded X range
+                40,
+                random(-halfDepth, halfDepth) // expanded Z range
+            );
+            sprite.scale.set(isHeart ? 2 : 20, isHeart ? 2 : 5, 1);
+
+            scene.add(sprite);
+            elements.push({
+                sprite,
+                duration: random(8, 18),
+                elapsed: 0
+            });
+
+            if (elements.length > 400) {
+                const oldElement = elements.shift();
+                scene.remove(oldElement.sprite);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            elements.forEach((element, index) => {
+                element.elapsed += 1 / 60;
+                const progress = element.elapsed / element.duration;
+                element.sprite.position.y = 40 - progress * 80;
+
+                if (progress >= 1) {
+                    scene.remove(element.sprite);
+                    elements.splice(index, 1);
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        setInterval(spawnElement, 80);
+        animate();
+    </script>
+</body>
+
+</html>
